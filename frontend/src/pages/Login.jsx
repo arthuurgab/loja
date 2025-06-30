@@ -1,15 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
-import {
-  Eye,
-  EyeOff,
-  Mail,
-  Lock,
-  Package,
-  AlertCircle,
-  CheckCircle,
-} from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Package, AlertCircle } from "lucide-react";
 
 function Login() {
   const [email, setEmail] = useState("");

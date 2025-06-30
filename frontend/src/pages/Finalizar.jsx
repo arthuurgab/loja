@@ -14,6 +14,12 @@ function Finalizar() {
   const [total, setTotal] = useState(0);
   const [formaPagamento, setFormaPagamento] = useState("pix");
 
+  // Estados para modais e parcelas
+  const [modalPix, setModalPix] = useState(false);
+  const [modalCredito, setModalCredito] = useState(false);
+  const [modalBoleto, setModalBoleto] = useState(false);
+  const [parcelas, setParcelas] = useState(1);
+
   const finalizarPedido = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -22,6 +28,7 @@ function Finalizar() {
         "http://localhost:3001/api/pedido/finalizar",
         {
           forma_pagamento: formaPagamento,
+          parcelas: formaPagamento === "cartao" ? parcelas : undefined,
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -30,11 +37,19 @@ function Finalizar() {
 
       alert("Pedido finalizado com sucesso!");
       console.log("Resposta:", response.data);
+
+      // Fechar modais após finalizar
+      setModalPix(false);
+      setModalCredito(false);
+      setModalBoleto(false);
+
+      buscarCarrinho(); // Atualiza carrinho depois
     } catch (error) {
       console.error("Erro ao finalizar pedido:", error.response?.data || error);
       alert("Erro ao finalizar pedido");
     }
   };
+
   const buscarCarrinho = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -108,6 +123,13 @@ function Finalizar() {
       id: "cartao",
       nome: "Cartão de Crédito",
       descricao: "Até 12x sem juros",
+      desconto: "",
+      icon: CreditCard,
+    },
+    {
+      id: "cartao_debito",
+      nome: "Cartão de Débito",
+      descricao: "Aprovação em poucas horas",
       desconto: "",
       icon: CreditCard,
     },
@@ -259,11 +281,107 @@ function Finalizar() {
               })}
             </div>
             <button
-              onClick={finalizarPedido}
+              onClick={() => {
+                if (formaPagamento === "pix") setModalPix(true);
+                else if (formaPagamento === "cartao") setModalCredito(true);
+                else if (formaPagamento === "boleto") setModalBoleto(true);
+                else finalizarPedido();
+              }}
               className="bg-blue-500 w-full mt-6 px-6 py-3 rounded-lg font-medium transition-colors text-white shadow-md"
             >
               Efetuar Pagamento
             </button>
+
+            {/* Modal PIX */}
+            {modalPix && (
+              <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+                <div className="bg-white p-6 rounded shadow-lg max-w-sm w-full">
+                  <h2 className="text-xl font-bold mb-4">Pagamento via PIX</h2>
+                  <p>Escaneie o QR Code abaixo para concluir o pagamento:</p>
+                  <img
+                    src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=PagamentoPIX"
+                    alt="QR Code PIX"
+                    className="mx-auto my-4"
+                  />
+                  <button
+                    onClick={() => {
+                      setModalPix(false);
+                      finalizarPedido();
+                    }}
+                    className="bg-blue-600 text-white px-4 py-2 rounded"
+                  >
+                    Confirmar Pagamento
+                  </button>
+                  <button
+                    onClick={() => setModalPix(false)}
+                    className="ml-4 px-4 py-2 rounded border border-gray-300"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Cartão de Crédito */}
+            {modalCredito && (
+              <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+                <div className="bg-white p-6 rounded shadow-lg max-w-sm w-full">
+                  <h2 className="text-xl font-bold mb-4">Cartão de Crédito</h2>
+                  <p>Selecione o número de parcelas:</p>
+                  <select
+                    value={parcelas}
+                    onChange={(e) => setParcelas(Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded p-2 mt-2 mb-4"
+                  >
+                    {[...Array(12)].map((_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        {i + 1}x sem juros
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => {
+                      setModalCredito(false);
+                      finalizarPedido();
+                    }}
+                    className="bg-blue-600 text-white px-4 py-2 rounded"
+                  >
+                    Confirmar Pagamento
+                  </button>
+                  <button
+                    onClick={() => setModalCredito(false)}
+                    className="ml-4 px-4 py-2 rounded border border-gray-300"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Boleto */}
+            {modalBoleto && (
+              <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+                <div className="bg-white p-6 rounded shadow-lg max-w-sm w-full">
+                  <h2 className="text-xl font-bold mb-4">Boleto Bancário</h2>
+                  <p>Será gerado um boleto com vencimento em 3 dias.</p>
+                  <button
+                    onClick={() => {
+                      setModalBoleto(false);
+                      finalizarPedido();
+                    }}
+                    className="bg-blue-600 text-white px-4 py-2 rounded"
+                  >
+                    Gerar Boleto
+                  </button>
+                  <button
+                    onClick={() => setModalBoleto(false)}
+                    className="ml-4 px-4 py-2 rounded border border-gray-300"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

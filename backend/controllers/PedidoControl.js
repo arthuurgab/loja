@@ -5,6 +5,7 @@ import User from "../models/UserModel.js";
 
 async function finalizar(req, res) {
   const cpf_cnpj = req.cpf_cnpj;
+  console.log(cpf_cnpj);
   const { forma_pagamento } = req.body;
 
   try {
