@@ -1,10 +1,35 @@
 import user from "../models/UserModel.js";
 import bcrypt from "bcrypt";
+import { Op } from "sequelize";
 
 // função listar usuários
 async function listar(req, res) {
-  const resData = await user.findAll();
-  res.json(resData);
+  const { nome_razao_social, email, cpf_cnpj, status } = req.query;
+  const whereClause = {};
+
+  if (nome_razao_social) {
+    whereClause.nome_razao_social = { [Op.like]: `%${nome_razao_social}%` };
+  }
+  if (email) {
+    whereClause.email = { [Op.like]: `%${email}%` };
+  }
+  if (cpf_cnpj) {
+    whereClause.cpf_cnpj = { [Op.like]: `%${cpf_cnpj}%` };
+  }
+  if (status) {
+    whereClause.status = status === 'ativo';
+  }
+
+  try {
+    const resData = await user.findAll({
+      where: whereClause,
+      attributes: ['nome_razao_social', 'email', 'telefone', 'status', 'data_criacao', 'data_atualizacao', 'cpf_cnpj'],
+    });
+    res.json(resData);
+  } catch (error) {
+    console.error("Erro ao listar usuários:", error);
+    res.status(500).send("Erro interno ao listar usuários.");
+  }
 }
 
 // função cadastrar usuários
@@ -31,6 +56,11 @@ async function inserir(req, res) {
     return res.status(422).send("O parâmetro Email é obrigatório.");
   }
 
+  const emailRegex = /^[\w-]+(?:\.[\w-]+)*@(?:[\w-]+\.)+[a-zA-Z]{2,7}$/;
+  if (!emailRegex.test(email)) {
+    return res.status(422).send("Formato de e-mail inválido.");
+  }
+
   const verificarEmail = await user.findOne({ where: { email } });
   if (verificarEmail) {
     return res.status(409).send("Email já cadastrado.");
@@ -43,6 +73,15 @@ async function inserir(req, res) {
 
   if (senha_hash.length < 8) {
     return res.status(422).send("A senha deve conter no mínimo 8 caracteres.");
+  }
+
+  const hasUpperCase = /[A-Z]/.test(senha_hash);
+  const hasLowerCase = /[a-z]/.test(senha_hash);
+  const hasNumber = /[0-9]/.test(senha_hash);
+  const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(senha_hash);
+
+  if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSymbol) {
+    return res.status(422).send("A senha deve conter letras maiúsculas, minúsculas, números e símbolos.");
   }
 
   const senha_com_hash = await bcrypt.hash(senha_hash, 10);
@@ -151,4 +190,22 @@ async function desativar(req, res) {
   }
 }
 
-export default { listar, inserir, alterar, desativar };
+async function ativar(req, res) {
+  const { cpf_cnpj } = req.body;
+  try {
+    const usuario = await user.findOne({ where: { cpf_cnpj } });
+
+    if (!usuario) {
+      return res.status(404).send("Usuário não encontrado.");
+    }
+
+    await user.update({ status: true }, { where: { cpf_cnpj } });
+
+    res.json({ mensagem: "Usuário ativado com sucesso." });
+  } catch (error) {
+    console.error("Erro ao ativar usuário:", error);
+    res.status(500).send("Erro interno ao ativar o usuário.");
+  }
+}
+
+export default { listar, inserir, alterar, desativar, ativar };

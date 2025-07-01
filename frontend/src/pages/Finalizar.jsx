@@ -16,37 +16,72 @@ function Finalizar() {
 
   // Estados para modais e parcelas
   const [modalPix, setModalPix] = useState(false);
-  const [modalCredito, setModalCredito] = useState(false);
   const [modalBoleto, setModalBoleto] = useState(false);
   const [parcelas, setParcelas] = useState(1);
 
-  const finalizarPedido = async () => {
+  const [pixId, setPixId] = useState(null);
+  const [modalCartao, setModalCartao] = useState(false);
+  const [dadosCartao, setDadosCartao] = useState({
+    numero: "",
+    nome: "",
+    validade: "",
+    cvv: "",
+  });
+
+  // Função para finalizar pedido
+  const finalizarPedido = async (metodo) => {
+    const token = localStorage.getItem("token");
+    if (metodo === "pix") {
+      try {
+        const response = await axios.post(
+          "http://localhost:3001/api/pedido/finalizar",
+          {
+            metodo_pagamento: metodo,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const { pix_id } = response.data;
+        setPixId(pix_id);
+        setModalPix(true);
+      } catch (error) {
+        console.error("Erro ao finalizar pedido:", error);
+      }
+    } else if (metodo === "cartao" || metodo === "cartao_debito") {
+      setModalCartao(true);
+    }
+  };
+
+  const enviarCartao = async () => {
     try {
-      const token = localStorage.getItem("token");
+      await axios.post("http://localhost:3001/api/pedido/finalizar", {
+        metodo_pagamento: formaPagamento,
+        dados_cartao: dadosCartao,
+        parcelas: formaPagamento === "cartao" ? parcelas : 1,
+      });
 
-      const response = await axios.post(
-        "http://localhost:3001/api/pedido/finalizar",
-        {
-          forma_pagamento: formaPagamento,
-          parcelas: formaPagamento === "cartao" ? parcelas : undefined,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      alert("Pedido finalizado com sucesso!");
-      console.log("Resposta:", response.data);
-
-      // Fechar modais após finalizar
-      setModalPix(false);
-      setModalCredito(false);
-      setModalBoleto(false);
-
-      buscarCarrinho(); // Atualiza carrinho depois
+      alert("Pagamento com cartão enviado com sucesso!");
+      setModalCartao(false);
+      window.location.href = "/";
     } catch (error) {
-      console.error("Erro ao finalizar pedido:", error.response?.data || error);
-      alert("Erro ao finalizar pedido");
+      console.error("Erro no pagamento com cartão:", error);
+      alert("Erro ao processar o pagamento.");
+    }
+  };
+
+  const simularPagamento = async () => {
+    try {
+      await axios.post(`http://localhost:3001/api/pedido/simular/${pixId}`);
+      alert("Pagamento confirmado com sucesso!");
+      setModalPix(false);
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Erro ao simular pagamento:", error);
+      alert("Erro ao confirmar pagamento.");
     }
   };
 
@@ -281,12 +316,7 @@ function Finalizar() {
               })}
             </div>
             <button
-              onClick={() => {
-                if (formaPagamento === "pix") setModalPix(true);
-                else if (formaPagamento === "cartao") setModalCredito(true);
-                else if (formaPagamento === "boleto") setModalBoleto(true);
-                else finalizarPedido();
-              }}
+              onClick={() => finalizarPedido(formaPagamento)}
               className="bg-blue-500 w-full mt-6 px-6 py-3 rounded-lg font-medium transition-colors text-white shadow-md"
             >
               Efetuar Pagamento
@@ -297,17 +327,8 @@ function Finalizar() {
               <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
                 <div className="bg-white p-6 rounded shadow-lg max-w-sm w-full">
                   <h2 className="text-xl font-bold mb-4">Pagamento via PIX</h2>
-                  <p>Escaneie o QR Code abaixo para concluir o pagamento:</p>
-                  <img
-                    src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=PagamentoPIX"
-                    alt="QR Code PIX"
-                    className="mx-auto my-4"
-                  />
                   <button
-                    onClick={() => {
-                      setModalPix(false);
-                      finalizarPedido();
-                    }}
+                    onClick={simularPagamento}
                     className="bg-blue-600 text-white px-4 py-2 rounded"
                   >
                     Confirmar Pagamento
@@ -322,35 +343,85 @@ function Finalizar() {
               </div>
             )}
 
-            {/* Modal Cartão de Crédito */}
-            {modalCredito && (
+            {modalCartao && (
               <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
                 <div className="bg-white p-6 rounded shadow-lg max-w-sm w-full">
-                  <h2 className="text-xl font-bold mb-4">Cartão de Crédito</h2>
-                  <p>Selecione o número de parcelas:</p>
-                  <select
-                    value={parcelas}
-                    onChange={(e) => setParcelas(Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded p-2 mt-2 mb-4"
-                  >
-                    {[...Array(12)].map((_, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        {i + 1}x sem juros
-                      </option>
-                    ))}
-                  </select>
+                  <h2 className="text-xl font-bold mb-4">
+                    {formaPagamento === "cartao"
+                      ? "Cartão de Crédito"
+                      : "Cartão de Débito"}
+                  </h2>
+
+                  <input
+                    type="text"
+                    placeholder="Número do Cartão"
+                    value={dadosCartao.numero}
+                    onChange={(e) =>
+                      setDadosCartao({ ...dadosCartao, numero: e.target.value })
+                    }
+                    className="w-full border p-2 rounded mb-2"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Nome impresso no cartão"
+                    value={dadosCartao.nome}
+                    onChange={(e) =>
+                      setDadosCartao({ ...dadosCartao, nome: e.target.value })
+                    }
+                    className="w-full border p-2 rounded mb-2"
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Validade (MM/AA)"
+                      value={dadosCartao.validade}
+                      onChange={(e) =>
+                        setDadosCartao({
+                          ...dadosCartao,
+                          validade: e.target.value,
+                        })
+                      }
+                      className="w-1/2 border p-2 rounded mb-2"
+                    />
+                    <input
+                      type="text"
+                      placeholder="CVV"
+                      value={dadosCartao.cvv}
+                      onChange={(e) =>
+                        setDadosCartao({ ...dadosCartao, cvv: e.target.value })
+                      }
+                      className="w-1/2 border p-2 rounded mb-2"
+                    />
+                  </div>
+
+                  {formaPagamento === "cartao" && (
+                    <>
+                      <label className="block text-sm font-medium mt-2">
+                        Parcelas:
+                      </label>
+                      <select
+                        value={parcelas}
+                        onChange={(e) => setParcelas(Number(e.target.value))}
+                        className="w-full border p-2 rounded mb-4"
+                      >
+                        {[...Array(12)].map((_, i) => (
+                          <option key={i + 1} value={i + 1}>
+                            {i + 1}x sem juros
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+
                   <button
-                    onClick={() => {
-                      setModalCredito(false);
-                      finalizarPedido();
-                    }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded"
+                    onClick={enviarCartao}
+                    className="bg-blue-600 text-white px-4 py-2 rounded w-full"
                   >
                     Confirmar Pagamento
                   </button>
                   <button
-                    onClick={() => setModalCredito(false)}
-                    className="ml-4 px-4 py-2 rounded border border-gray-300"
+                    onClick={() => setModalCartao(false)}
+                    className="mt-2 px-4 py-2 w-full rounded border border-gray-300"
                   >
                     Cancelar
                   </button>
@@ -363,19 +434,15 @@ function Finalizar() {
               <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
                 <div className="bg-white p-6 rounded shadow-lg max-w-sm w-full">
                   <h2 className="text-xl font-bold mb-4">Boleto Bancário</h2>
-                  <p>Será gerado um boleto com vencimento em 3 dias.</p>
-                  <button
-                    onClick={() => {
-                      setModalBoleto(false);
-                      finalizarPedido();
-                    }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded"
-                  >
-                    Gerar Boleto
+                  <p className="mb-4">
+                    Será gerado um boleto com vencimento em 3 dias.
+                  </p>
+                  <button className="bg-blue-600 text-white px-4 py-2 rounded w-full">
+                    Confirmar Pagamento
                   </button>
                   <button
                     onClick={() => setModalBoleto(false)}
-                    className="ml-4 px-4 py-2 rounded border border-gray-300"
+                    className="mt-2 px-4 py-2 w-full rounded border border-gray-300"
                   >
                     Cancelar
                   </button>
