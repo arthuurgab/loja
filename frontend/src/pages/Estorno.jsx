@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/ui/Navbar";
-import { RotateCw, ClipboardX, Navigation } from "lucide-react";
+import { RotateCw, ClipboardX } from "lucide-react";
 
 function Estorno() {
   const [pedidos, setPedidos] = useState([]);

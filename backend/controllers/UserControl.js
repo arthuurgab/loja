@@ -17,13 +17,21 @@ async function listar(req, res) {
     whereClause.cpf_cnpj = { [Op.like]: `%${cpf_cnpj}%` };
   }
   if (status) {
-    whereClause.status = status === 'ativo';
+    whereClause.status = status === "ativo";
   }
 
   try {
     const resData = await user.findAll({
       where: whereClause,
-      attributes: ['nome_razao_social', 'email', 'telefone', 'status', 'data_criacao', 'data_atualizacao', 'cpf_cnpj'],
+      attributes: [
+        "nome_razao_social",
+        "email",
+        "telefone",
+        "status",
+        "data_criacao",
+        "data_atualizacao",
+        "cpf_cnpj",
+      ],
     });
     res.json(resData);
   } catch (error) {
@@ -36,72 +44,31 @@ async function listar(req, res) {
 async function inserir(req, res) {
   const { nome_razao_social, cpf_cnpj, email, senha_hash, telefone } = req.body;
 
-  // Validações Nome/Razão Social
-  if (!nome_razao_social) {
-    return res.status(422).send("O parâmetro Nome/Razão Social é obrigatório.");
+  try {
+    const senha_com_hash = await bcrypt.hash(senha_hash, 10);
+
+    const novoUsuario = await user.create({
+      nome_razao_social,
+      cpf_cnpj,
+      email,
+      senha_hash: senha_com_hash,
+      telefone,
+    });
+
+    res.status(201).json({
+      mensagem: "Usuário cadastrado com sucesso!",
+      usuario: {
+        id: novoUsuario.id,
+        nome_razao_social,
+        email,
+        cpf_cnpj,
+        telefone,
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao cadastrar usuário:", error);
+    res.status(500).json({ erro: "Erro ao cadastrar usuário." });
   }
-
-  // Validações CPF/CNPJ
-  if (!cpf_cnpj) {
-    return res.status(422).send("O parâmetro CPF/CNPJ é obrigatório.");
-  }
-
-  const verificarCPF = await user.findOne({ where: { cpf_cnpj } });
-  if (verificarCPF) {
-    return res.status(409).send("CPF/CNPJ já cadastrado.");
-  }
-
-  // Validações Email
-  if (!email) {
-    return res.status(422).send("O parâmetro Email é obrigatório.");
-  }
-
-  const emailRegex = /^[\w-]+(?:\.[\w-]+)*@(?:[\w-]+\.)+[a-zA-Z]{2,7}$/;
-  if (!emailRegex.test(email)) {
-    return res.status(422).send("Formato de e-mail inválido.");
-  }
-
-  const verificarEmail = await user.findOne({ where: { email } });
-  if (verificarEmail) {
-    return res.status(409).send("Email já cadastrado.");
-  }
-
-  // Validações Senha
-  if (!senha_hash) {
-    return res.status(422).send("O parâmetro Senha é obrigatório.");
-  }
-
-  if (senha_hash.length < 8) {
-    return res.status(422).send("A senha deve conter no mínimo 8 caracteres.");
-  }
-
-  const hasUpperCase = /[A-Z]/.test(senha_hash);
-  const hasLowerCase = /[a-z]/.test(senha_hash);
-  const hasNumber = /[0-9]/.test(senha_hash);
-  const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(senha_hash);
-
-  if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSymbol) {
-    return res.status(422).send("A senha deve conter letras maiúsculas, minúsculas, números e símbolos.");
-  }
-
-  const senha_com_hash = await bcrypt.hash(senha_hash, 10);
-
-  // Validações Telefone
-  if (!telefone) {
-    return res.status(422).send("O parâmetro Telefone é obrigatório.");
-  }
-
-  const resData = await user.create({
-    nome_razao_social,
-    cpf_cnpj,
-    email,
-    senha_hash: senha_com_hash,
-    telefone,
-  });
-  res.json({
-    mensagem:
-      "Usuário criado!! Faça login para aproveitar todos os benefícios da loja!",
-  });
 }
 
 // função editar usuário
