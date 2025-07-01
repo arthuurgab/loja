@@ -214,7 +214,7 @@ async function solicitarEstorno(req, res) {
       return res.status(404).json({ erro: "Usuário não encontrado." });
     }
 
-    const pedido = await Pedido.findOne({
+    const pedido = await Pagamento.findOne({
       where: { id: pedido_id, usuario_id: usuario.id },
     });
     if (!pedido) {
@@ -232,22 +232,6 @@ async function solicitarEstorno(req, res) {
         .json({ erro: "Pagamento não encontrado para este pedido." });
     }
 
-    // Condições para estorno: pago, não entregue (simulado), e dentro do prazo (simulado 7 dias)
-
-    // Simulação de chamada à API da Operadora de Cartão para estorno
-    // const estornoPayload = { transacao_id: pagamento.id, valor: pagamento.valor_pago, motivo };
-    // const estornoResponse = await axios.post("https://api.operadoracartao.com/estornar", estornoPayload);
-
-    // if (estornoResponse.data.status === "aprovado") {
-    //   pagamento.status = "Estornado";
-    //   pedido.status = "Estornado";
-    //   mensagemPagamento = "Estorno aprovado com sucesso!";
-    // } else {
-    //   pagamento.status = "Estorno recusado";
-    //   pedido.status = "Estorno recusado";
-    //   mensagemPagamento = "Estorno recusado pela operadora.";
-    // }
-
     pagamento.status = "Estorno solicitado"; // Simulado
     pedido.status = "Estorno solicitado"; // Simulado
     mensagemPagamento =
@@ -263,4 +247,4 @@ async function solicitarEstorno(req, res) {
   }
 }
 
-export default { finalizar, simular, listarPedidosPagos };
+export default { finalizar, simular, solicitarEstorno, listarPedidosPagos };

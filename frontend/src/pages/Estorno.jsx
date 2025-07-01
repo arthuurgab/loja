@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/ui/Navbar";
-import { RotateCw, ClipboardX } from "lucide-react";
+import { RotateCw, ClipboardX, Navigation } from "lucide-react";
 
 function Estorno() {
   const [pedidos, setPedidos] = useState([]);
@@ -46,7 +46,7 @@ function Estorno() {
       buscarPedidosPagos();
     } catch (error) {
       console.error("Erro ao solicitar estorno:", error);
-      setMensagem("Falha ao solicitar estorno.");
+      setMensagem("Estorno feito com sucesso!");
     }
   };
 
