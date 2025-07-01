@@ -6,4 +6,6 @@ const router = express.Router();
 
 router.post("/finalizar", autenticarToken, pedido.finalizar);
 router.post("/simular/:id", pedido.simular);
+router.get("/pagos", autenticarToken, pedido.listarPedidosPagos);
+
 export default router;

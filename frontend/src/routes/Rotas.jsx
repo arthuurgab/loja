@@ -4,6 +4,7 @@ import Login from "../pages/Login";
 import Cadastro from "../pages/Cadastrar";
 import Finalizar from "../pages/Finalizar";
 import Perfil from "../pages/Perfil";
+import Estorno from "../pages/Estorno";
 
 function AppRoutes() {
   return (
@@ -14,6 +15,7 @@ function AppRoutes() {
         <Route path="/cadastro" element={<Cadastro />} />
         <Route path="/finalizar" element={<Finalizar />} />
         <Route path="/perfil" element={<Perfil />} />
+        <Route path="/estorno" element={<Estorno />} />
       </Routes>
     </Router>
   );

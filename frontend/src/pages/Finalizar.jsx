@@ -14,13 +14,12 @@ function Finalizar() {
   const [total, setTotal] = useState(0);
   const [formaPagamento, setFormaPagamento] = useState("pix");
 
-  // Estados para modais e parcelas
   const [modalPix, setModalPix] = useState(false);
   const [modalBoleto, setModalBoleto] = useState(false);
-  const [parcelas, setParcelas] = useState(1);
+  const [modalCartao, setModalCartao] = useState(false);
 
   const [pixId, setPixId] = useState(null);
-  const [modalCartao, setModalCartao] = useState(false);
+  const [parcelas, setParcelas] = useState(1);
   const [dadosCartao, setDadosCartao] = useState({
     numero: "",
     nome: "",
@@ -28,11 +27,10 @@ function Finalizar() {
     cvv: "",
   });
 
-  // Função para finalizar pedido
   const finalizarPedido = async (metodo) => {
     const token = localStorage.getItem("token");
-    if (metodo === "pix") {
-      try {
+    try {
+      if (metodo === "pix" || metodo === "boleto") {
         const response = await axios.post(
           "http://localhost:3001/api/pedido/finalizar",
           {
@@ -45,24 +43,37 @@ function Finalizar() {
           }
         );
 
-        const { pix_id } = response.data;
-        setPixId(pix_id);
-        setModalPix(true);
-      } catch (error) {
-        console.error("Erro ao finalizar pedido:", error);
+        if (metodo === "pix") {
+          setPixId(response.data.pix_id);
+          setModalPix(true);
+        } else if (metodo === "boleto") {
+          setModalBoleto(true);
+        }
+      } else if (metodo === "cartao" || metodo === "cartao_debito") {
+        setModalCartao(true);
       }
-    } else if (metodo === "cartao" || metodo === "cartao_debito") {
-      setModalCartao(true);
+    } catch (error) {
+      console.error("Erro ao finalizar pedido:", error);
+      alert("Erro ao finalizar pedido");
     }
   };
 
   const enviarCartao = async () => {
+    const token = localStorage.getItem("token");
     try {
-      await axios.post("http://localhost:3001/api/pedido/finalizar", {
-        metodo_pagamento: formaPagamento,
-        dados_cartao: dadosCartao,
-        parcelas: formaPagamento === "cartao" ? parcelas : 1,
-      });
+      await axios.post(
+        "http://localhost:3001/api/pedido/finalizar",
+        {
+          metodo_pagamento: formaPagamento,
+          dados_cartao: dadosCartao,
+          parcelas: formaPagamento === "cartao" ? parcelas : 1,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       alert("Pagamento com cartão enviado com sucesso!");
       setModalCartao(false);
@@ -82,6 +93,29 @@ function Finalizar() {
     } catch (error) {
       console.error("Erro ao simular pagamento:", error);
       alert("Erro ao confirmar pagamento.");
+    }
+  };
+
+  const confirmarBoleto = async () => {
+    const token = localStorage.getItem("token");
+    try {
+      await axios.post(
+        "http://localhost:3001/api/pedido/finalizar",
+        {
+          metodo_pagamento: "boleto",
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      alert("Boleto gerado com sucesso!");
+      setModalBoleto(false);
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Erro ao gerar boleto:", error);
+      alert("Erro ao gerar boleto");
     }
   };
 
@@ -325,24 +359,42 @@ function Finalizar() {
             {/* Modal PIX */}
             {modalPix && (
               <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
-                <div className="bg-white p-6 rounded shadow-lg max-w-sm w-full">
-                  <h2 className="text-xl font-bold mb-4">Pagamento via PIX</h2>
-                  <button
-                    onClick={simularPagamento}
-                    className="bg-blue-600 text-white px-4 py-2 rounded"
-                  >
-                    Confirmar Pagamento
-                  </button>
-                  <button
-                    onClick={() => setModalPix(false)}
-                    className="ml-4 px-4 py-2 rounded border border-gray-300"
-                  >
-                    Cancelar
-                  </button>
+                <div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md animate-fade-in">
+                  <h2 className="text-2xl font-bold text-center text-gray-800 mb-4">
+                    Pagamento via PIX
+                  </h2>
+
+                  <p className="text-center text-gray-600 mb-6">
+                    Escaneie o QR Code abaixo para realizar o pagamento.
+                  </p>
+
+                  <div className="flex justify-center mb-6">
+                    <img
+                      src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/QR_code_example.svg/768px-QR_code_example.svg.png"
+                      alt="QR Code"
+                      className="w-48 h-48 border rounded"
+                    />
+                  </div>
+
+                  <div className="flex justify-center gap-4">
+                    <button
+                      onClick={simularPagamento}
+                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium shadow"
+                    >
+                      Confirmar Pagamento
+                    </button>
+                    <button
+                      onClick={() => setModalPix(false)}
+                      className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
 
+            {/* Modal Cartão */}
             {modalCartao && (
               <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
                 <div className="bg-white p-6 rounded shadow-lg max-w-sm w-full">
@@ -359,60 +411,52 @@ function Finalizar() {
                     onChange={(e) =>
                       setDadosCartao({ ...dadosCartao, numero: e.target.value })
                     }
-                    className="w-full border p-2 rounded mb-2"
+                    className="mb-3 w-full border border-gray-300 rounded p-2"
                   />
                   <input
                     type="text"
-                    placeholder="Nome impresso no cartão"
+                    placeholder="Nome no Cartão"
                     value={dadosCartao.nome}
                     onChange={(e) =>
                       setDadosCartao({ ...dadosCartao, nome: e.target.value })
                     }
-                    className="w-full border p-2 rounded mb-2"
+                    className="mb-3 w-full border border-gray-300 rounded p-2"
                   />
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Validade (MM/AA)"
-                      value={dadosCartao.validade}
-                      onChange={(e) =>
-                        setDadosCartao({
-                          ...dadosCartao,
-                          validade: e.target.value,
-                        })
-                      }
-                      className="w-1/2 border p-2 rounded mb-2"
-                    />
-                    <input
-                      type="text"
-                      placeholder="CVV"
-                      value={dadosCartao.cvv}
-                      onChange={(e) =>
-                        setDadosCartao({ ...dadosCartao, cvv: e.target.value })
-                      }
-                      className="w-1/2 border p-2 rounded mb-2"
-                    />
-                  </div>
-
+                  <input
+                    type="text"
+                    placeholder="Validade (MM/AA)"
+                    value={dadosCartao.validade}
+                    onChange={(e) =>
+                      setDadosCartao({
+                        ...dadosCartao,
+                        validade: e.target.value,
+                      })
+                    }
+                    className="mb-3 w-full border border-gray-300 rounded p-2"
+                  />
+                  <input
+                    type="text"
+                    placeholder="CVV"
+                    value={dadosCartao.cvv}
+                    onChange={(e) =>
+                      setDadosCartao({ ...dadosCartao, cvv: e.target.value })
+                    }
+                    className="mb-3 w-full border border-gray-300 rounded p-2"
+                  />
                   {formaPagamento === "cartao" && (
-                    <>
-                      <label className="block text-sm font-medium mt-2">
-                        Parcelas:
-                      </label>
-                      <select
-                        value={parcelas}
-                        onChange={(e) => setParcelas(Number(e.target.value))}
-                        className="w-full border p-2 rounded mb-4"
-                      >
-                        {[...Array(12)].map((_, i) => (
-                          <option key={i + 1} value={i + 1}>
-                            {i + 1}x sem juros
-                          </option>
-                        ))}
-                      </select>
-                    </>
+                    <select
+                      value={parcelas}
+                      onChange={(e) => setParcelas(Number(e.target.value))}
+                      className="mb-4 w-full border border-gray-300 rounded p-2"
+                    >
+                      {[...Array(12).keys()].map((x) => (
+                        <option key={x + 1} value={x + 1}>
+                          {x + 1}x de{" "}
+                          {formatPrice(calcularTotalFinal() / (x + 1))}
+                        </option>
+                      ))}
+                    </select>
                   )}
-
                   <button
                     onClick={enviarCartao}
                     className="bg-blue-600 text-white px-4 py-2 rounded w-full"
@@ -421,7 +465,7 @@ function Finalizar() {
                   </button>
                   <button
                     onClick={() => setModalCartao(false)}
-                    className="mt-2 px-4 py-2 w-full rounded border border-gray-300"
+                    className="mt-2 w-full px-4 py-2 rounded border border-gray-300"
                   >
                     Cancelar
                   </button>
@@ -432,20 +476,38 @@ function Finalizar() {
             {/* Modal Boleto */}
             {modalBoleto && (
               <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
-                <div className="bg-white p-6 rounded shadow-lg max-w-sm w-full">
-                  <h2 className="text-xl font-bold mb-4">Boleto Bancário</h2>
-                  <p className="mb-4">
-                    Será gerado um boleto com vencimento em 3 dias.
+                <div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md animate-fade-in">
+                  <h2 className="text-2xl font-bold text-center text-gray-800 mb-4">
+                    Pagamento via Boleto
+                  </h2>
+
+                  <p className="text-center text-gray-600 mb-6">
+                    Boleto gerado com sucesso! Utilize o código abaixo para
+                    pagamento.
                   </p>
-                  <button className="bg-blue-600 text-white px-4 py-2 rounded w-full">
-                    Confirmar Pagamento
-                  </button>
-                  <button
-                    onClick={() => setModalBoleto(false)}
-                    className="mt-2 px-4 py-2 w-full rounded border border-gray-300"
-                  >
-                    Cancelar
-                  </button>
+
+                  <div className="flex justify-center mb-6">
+                    <img
+                      src="https://upload.wikimedia.org/wikipedia/commons/9/99/Barcode1DCode128.png"
+                      alt="Código de barras do boleto"
+                      className="w-64 h-20 object-contain border rounded"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={confirmarBoleto}
+                      className="bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium shadow"
+                    >
+                      Confirmar Pagamento
+                    </button>
+                    <button
+                      onClick={() => setModalBoleto(false)}
+                      className="py-3 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
